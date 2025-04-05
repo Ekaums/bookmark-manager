@@ -8,9 +8,7 @@ use commands::*;
 fn main() {
     let args = Cli::parse();
     match args.command {
-        Commands::Add { tag, path } => {
-            add_bookmark(tag, path.expect("Default path not implemented"))
-        } // TODO: handle no path case by using default path
+        Commands::Add { tag, path } => add_bookmark(tag, path), // TODO: handle no path case by using default path
         _ => {}
     }
 }

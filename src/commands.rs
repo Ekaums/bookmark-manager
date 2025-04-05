@@ -1,19 +1,27 @@
+use std::env;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 use toml::Table;
 
-pub fn add_bookmark(tag: String, path: String) { // TODO: bookmark struct?
-    let config_file = "bookmarks.toml"; // TODO: make a constant? if thats a thing
-                                        // Load existing bookmarks
+pub fn add_bookmark(tag: String, path: Option<PathBuf>) {
+    // TODO: bookmark struct?
+
+    // Validate path
+    let path: String = resolve_path(path);
+
+    // TODO: make a constant? if thats a thing
+    let config_file = "bookmarks.toml";
+
+    // Check if config file exists or create new one
     if !Path::new(config_file).exists() {
         println!("Creating new {config_file}");
         fs::write(config_file, "[bookmarks]\n").expect("Failed to config create file!");
     }
 
-    // Read contents of file
+    // Read existing bookmarks
     let contents = match fs::read_to_string(config_file) // This is pretty much what .expect() does lul
                                                          // I think this err handling only makes sense if you aren't going to immediately panic
     {
@@ -27,13 +35,21 @@ pub fn add_bookmark(tag: String, path: String) { // TODO: bookmark struct?
 
     // Parse the string into a toml table
     // Toml table is a hash map for string to a Toml value (which can be string, int, or in this case another table (e.g. bookmarks))
-    let mut main_table: Table = contents.parse::<Table>().expect("Could not parse file contents");
+    let mut main_table: Table = contents
+        .parse::<Table>()
+        .expect("Could not parse file contents");
 
-    // Query the hash map for the bookmarks entry (which Value which is just an enum to the multiple types that a toml can have)
-    let bookmarks = main_table.get("bookmarks").expect("No bookmarks entry found"); // bookmarks is borrowing the entry
-    let bookmarks = bookmarks.as_table().expect("Could not convert bookmark into table");
+    // Query the hash map for the bookmarks entry (returns enum to the multiple types that a toml can have)
+    let bookmarks = main_table
+        .get("bookmarks")
+        .expect("No bookmarks entry found"); // `bookmarks` is borrowing the entry
+    
+    let bookmarks = bookmarks
+        .as_table()
+        .expect("Could not convert bookmark into table");
+
     let mut b_cpy = bookmarks.to_owned(); // bookmarks was a reference (borrow) to the entry in the main_table. so now we create a copy so we can insert new entry
-    b_cpy.insert(tag, path.into()); // from/into traits define how to convert from one type to another (in this case, from String to Value) 
+    b_cpy.insert(tag, path.into()); // from/into traits define how to convert from one type to another (in this case, from String to Value)
     main_table.insert("bookmarks".into(), toml::Value::Table(b_cpy));
 
     let mut file = OpenOptions::new()
@@ -42,6 +58,30 @@ pub fn add_bookmark(tag: String, path: String) { // TODO: bookmark struct?
         .open(config_file)
         .unwrap();
 
-    println!("{}", main_table.to_string());
+    //println!("{}", main_table.to_string());
     file.write_all(main_table.to_string().as_bytes()).unwrap();
+}
+
+fn resolve_path(path: Option<PathBuf>) -> String { // TODO: check if its a dir
+    match path {
+        // If user provided path
+        Some(path_v) => {
+            if !path_v.is_dir() {
+                eprintln!("Error: Provided path was not a directory");
+                exit(1);
+            }
+            path_v
+                .canonicalize()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned() // Get absolute path
+        }
+        // No path provided (use current dir)
+        None => {
+            env::current_dir()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned()
+        }
+    }
 }
