@@ -9,11 +9,11 @@ use toml::Table;
 pub fn add_bookmark(tag: String, path: Option<PathBuf>) {
     // TODO: bookmark struct?
 
-    // Validate path
     let path: String = resolve_path(path);
 
     // TODO: make a constant? if thats a thing
     let config_file = "bookmarks.toml";
+    let bookmarks_table = "bookmarks";
 
     // Check if config file exists or create new one
     if !Path::new(config_file).exists() {
@@ -41,7 +41,7 @@ pub fn add_bookmark(tag: String, path: Option<PathBuf>) {
 
     // Query the hash map for the bookmarks entry (returns enum to the multiple types that a toml can have)
     let bookmarks = main_table
-        .get("bookmarks")
+        .get(bookmarks_table)
         .expect("No bookmarks entry found"); // `bookmarks` is borrowing the entry
     
     let bookmarks = bookmarks
@@ -58,11 +58,11 @@ pub fn add_bookmark(tag: String, path: Option<PathBuf>) {
         .open(config_file)
         .unwrap();
 
-    //println!("{}", main_table.to_string());
     file.write_all(main_table.to_string().as_bytes()).unwrap();
 }
 
-fn resolve_path(path: Option<PathBuf>) -> String { // TODO: check if its a dir
+// Ensure path is valid
+fn resolve_path(path: Option<PathBuf>) -> String {
     match path {
         // If user provided path
         Some(path_v) => {
@@ -73,7 +73,7 @@ fn resolve_path(path: Option<PathBuf>) -> String { // TODO: check if its a dir
             path_v
                 .canonicalize()
                 .unwrap()
-                .to_string_lossy()
+                .to_string_lossy() // Cow can either return a reference (if path can be cleanly converted into String) or a new string (which is owned)
                 .into_owned() // Get absolute path
         }
         // No path provided (use current dir)
