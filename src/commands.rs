@@ -6,29 +6,30 @@ use std::path::{Path, PathBuf};
 use std::process::exit;
 use toml::Table;
 
+const CONFIG_FILE: &str = "bookmarks.toml";
+const TABLE_NAME: &str = "bookmarks";
+
 pub fn add_bookmark(tag: String, path: Option<PathBuf>) {
     // TODO: bookmark struct?
 
     let path: String = resolve_path(path);
 
-    // TODO: make a constant? if thats a thing
-    let config_file = "bookmarks.toml";
-    let bookmarks_table = "bookmarks";
+    // TODO: make this cleaner with unpacking
 
     // Check if config file exists or create new one
-    if !Path::new(config_file).exists() {
-        println!("Creating new {config_file}");
-        fs::write(config_file, "[bookmarks]\n").expect("Failed to config create file!");
+    if !Path::new(CONFIG_FILE).exists() {
+        println!("Creating new {CONFIG_FILE}");
+        fs::write(CONFIG_FILE, "[bookmarks]\n").expect("Failed to config create file!");
     }
 
     // Read existing bookmarks
-    let contents = match fs::read_to_string(config_file) // This is pretty much what .expect() does lul
+    let contents = match fs::read_to_string(CONFIG_FILE) // This is pretty much what .expect() does lul
                                                          // I think this err handling only makes sense if you aren't going to immediately panic
     {
         // If success return file contents as String
         Ok(c) => c,
         Err(_) => {
-            eprintln!("Could not read {config_file}");
+            eprintln!("Could not read {CONFIG_FILE} for adding");
             exit(1);
         }
     };
@@ -41,9 +42,9 @@ pub fn add_bookmark(tag: String, path: Option<PathBuf>) {
 
     // Query the hash map for the bookmarks entry (returns enum to the multiple types that a toml can have)
     let bookmarks = main_table
-        .get(bookmarks_table)
+        .get(TABLE_NAME)
         .expect("No bookmarks entry found"); // `bookmarks` is borrowing the entry
-    
+
     let bookmarks = bookmarks
         .as_table()
         .expect("Could not convert bookmark into table");
@@ -55,7 +56,7 @@ pub fn add_bookmark(tag: String, path: Option<PathBuf>) {
     let mut file = OpenOptions::new()
         .write(true)
         .truncate(true)
-        .open(config_file)
+        .open(CONFIG_FILE)
         .unwrap();
 
     file.write_all(main_table.to_string().as_bytes()).unwrap();
@@ -77,11 +78,36 @@ fn resolve_path(path: Option<PathBuf>) -> String {
                 .into_owned() // Get absolute path
         }
         // No path provided (use current dir)
-        None => {
-            env::current_dir()
-                .unwrap()
-                .to_string_lossy()
-                .into_owned()
-        }
+        None => env::current_dir().unwrap().to_string_lossy().into_owned(),
+    }
+}
+
+// TODO: move to new file?
+pub fn list_bookmarks() {
+    // Check if config file exists
+    if !Path::new(CONFIG_FILE).exists() {
+        println!("No bookmarks created :(");
+        return;
+    }
+
+    // TODO: cleaner way of doing this with if_else stuff (as well as above)
+    let contents =
+        fs::read_to_string(CONFIG_FILE).expect("Could not read {CONFIG_FILE} for listing");
+
+    let main_table: Table = contents
+        .parse::<Table>()
+        .expect("Could not parse file contents");
+
+    let bookmarks = main_table
+        .get(TABLE_NAME)
+        .expect("No bookmarks entry found"); // `bookmarks` is borrowing the entry
+
+    let bookmarks = bookmarks
+        .as_table()
+        .expect("Could not convert bookmark into table");
+
+    for (tag, path) in bookmarks {
+        // TODO: how this work
+        println!("{:<} → {}", tag, path);
     }
 }
