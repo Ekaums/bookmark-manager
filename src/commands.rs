@@ -23,8 +23,7 @@ pub fn add_bookmark(tag: String, path: Option<PathBuf>) {
     }
 
     // Read existing bookmarks
-    let contents = match fs::read_to_string(CONFIG_FILE) // This is pretty much what .expect() does lul
-                                                         // I think this err handling only makes sense if you aren't going to immediately panic
+    let contents = match fs::read_to_string(CONFIG_FILE) // This is pretty much what .expect() does
     {
         // If success return file contents as String
         Ok(c) => c,
@@ -43,14 +42,12 @@ pub fn add_bookmark(tag: String, path: Option<PathBuf>) {
     // Query the hash map for the bookmarks entry (returns enum to the multiple types that a toml can have)
     let bookmarks = main_table
         .get(TABLE_NAME)
-        .expect("No bookmarks entry found"); // `bookmarks` is borrowing the entry
-
-    let bookmarks = bookmarks
+        .expect("No bookmarks entry found") // `bookmarks` is borrowing the entry
         .as_table()
         .expect("Could not convert bookmark into table");
 
     let mut b_cpy = bookmarks.to_owned(); // bookmarks was a reference (borrow) to the entry in the main_table. so now we create a copy so we can insert new entry
-    b_cpy.insert(tag, path.into()); // from/into traits define how to convert from one type to another (in this case, from String to Value)
+    b_cpy.insert(tag, path.into());
     main_table.insert("bookmarks".into(), toml::Value::Table(b_cpy));
 
     let mut file = OpenOptions::new()
@@ -90,21 +87,22 @@ pub fn list_bookmarks() {
         return;
     }
 
-    // TODO: cleaner way of doing this with if_else stuff (as well as above)
-    let contents =
-        fs::read_to_string(CONFIG_FILE).expect("Could not read {CONFIG_FILE} for listing");
-
-    let main_table: Table = contents
+    /* This can't be combined all into one method chain,
+       Because .parse() allocates new memory on the heap for the parsed data.
+       If I don't bind a variable to that memory, then I would just be grabbing a reference
+       to the memory (with .get()), but that memory goes out of scope by the semicolon.
+       (Dangling reference)
+       So instead, bind the memory to a variable then grab a reference and use it
+    */
+    let table = fs::read_to_string(CONFIG_FILE)
+        .expect("Could not read {CONFIG_FILE} for listing")
         .parse::<Table>()
-        .expect("Could not parse file contents");
+        .expect("Could not parse file contents for listing");
 
-    let bookmarks = main_table
+    let bookmarks = table
         .get(TABLE_NAME)
-        .expect("No bookmarks entry found"); // `bookmarks` is borrowing the entry
-
-    let bookmarks = bookmarks
-        .as_table()
-        .expect("Could not convert bookmark into table");
+        .and_then(|v| v.as_table())
+        .expect("Could not convert bookmarks into table");
 
     for (tag, path) in bookmarks {
         // TODO: how this work

@@ -11,7 +11,7 @@ fn main() {
         Commands::Add { tag, path } => add_bookmark(tag, path),
 
         Commands::Ls => list_bookmarks(),
-        
+
         _ => {}
     }
 }
