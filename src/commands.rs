@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::exit;
 use toml::Table;
 
-const CONFIG_FILE: &str = "bookmarks.toml";
+const CONFIG_FILE: &str = "/Users/ekaumsingh/ws/repo/rust/bookmark-manager/bookmarks.toml";
 const TABLE_NAME: &str = "bookmarks";
 
 pub fn add_bookmark(tag: String, path: Option<PathBuf>) {
@@ -23,6 +23,7 @@ pub fn add_bookmark(tag: String, path: Option<PathBuf>) {
     }
 
     // Read existing bookmarks
+    // TODO: clean up this with unified fn
     let contents = match fs::read_to_string(CONFIG_FILE) // This is pretty much what .expect() does
     {
         // If success return file contents as String
@@ -108,4 +109,34 @@ pub fn list_bookmarks() {
         // TODO: how this work
         println!("{:<} → {}", tag, path);
     }
+}
+
+pub fn go_bookmark(tag : String){
+    // Check if config file exists
+    if !Path::new(CONFIG_FILE).exists() {
+        println!("No bookmarks created :(");
+        return;
+    }
+
+    // TODO: Check that this is a valid tag, and get the dir
+
+
+    // Check that the dir exists that we wanna navigate to
+    // TODO: move getting table to new fn (done in multiple places)
+    let table = fs::read_to_string(CONFIG_FILE)
+        .expect("Could not read {CONFIG_FILE} for listing")
+        .parse::<Table>()
+        .expect("Could not parse file contents for listing");
+
+    let bookmark = table
+        .get(TABLE_NAME)
+        .and_then(|v| v.as_table())
+        .expect("Could not convert bookmarks into table")
+        .get(&tag)
+        .unwrap();
+
+    let path = bookmark.as_str().unwrap();
+
+    println!("{}", path);
+    // Output this path (to do the cd)
 }

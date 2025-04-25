@@ -12,6 +12,8 @@ fn main() {
 
         Commands::Ls => list_bookmarks(),
 
+        Commands::Go { tag } => go_bookmark(tag),
+
         _ => {}
     }
 }
